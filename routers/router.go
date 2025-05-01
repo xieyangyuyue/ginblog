@@ -36,6 +36,6 @@ func InitRouter() {
 	}
 
 	// 启动HTTP服务（从配置中读取端口号）
-	// utils.HttpPort 示例值：":3000"（冒号+端口号格式）
+	// utils.HttpPort 示例值：":8080"（冒号+端口号格式）
 	r.Run(utils.HttpPort) 
 }
