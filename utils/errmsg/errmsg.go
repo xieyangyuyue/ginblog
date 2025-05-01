@@ -19,7 +19,7 @@ const (
 	ErrorUserNoRight                  // 用户无权限
 )
 
-// 文章模块错误码 (2001)
+// ErrorArtNotExist 文章模块错误码 (2001)
 const (
 	ErrorArtNotExist = 2001 // 文章不存在
 )
