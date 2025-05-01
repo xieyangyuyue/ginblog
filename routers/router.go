@@ -1,9 +1,10 @@
 package routers
 
 import (
-	"ginblog/utils"       // 自定义配置工具包
-	"github.com/gin-gonic/gin"  // Gin Web框架
-	"net/http"            // HTTP协议支持
+	v1 "ginblog/api/v1"
+	"ginblog/utils"            // 自定义配置工具包
+	"github.com/gin-gonic/gin" // Gin Web框架
+	"net/http"                 // HTTP协议支持
 )
 
 // InitRouter 初始化路由并启动HTTP服务
@@ -11,7 +12,7 @@ import (
 func InitRouter() {
 	// 设置Gin运行模式（从配置中读取）
 	// utils.AppMode 可能的值：debug/test/release
-	gin.SetMode(utils.AppMode) 
+	gin.SetMode(utils.AppMode)
 
 	// 创建默认路由引擎（自带Logger和Recovery中间件）
 	r := gin.Default()
@@ -25,7 +26,7 @@ func InitRouter() {
 		router.GET("hello", func(c *gin.Context) {
 			// 返回JSON格式响应
 			c.JSON(http.StatusOK, gin.H{
-				"msg": "ok",  // 示例响应内容
+				"msg": "ok", // 示例响应内容
 			})
 		})
 
@@ -33,9 +34,22 @@ func InitRouter() {
 		// router.POST("/articles", 创建文章)
 		// router.GET("/articles", 获取文章列表)
 		// router.PUT("/articles/:id", 更新文章)
+
+		//用户模块的路由接口
+		router.POST("user/add", v1.AddUser)
+		router.GET("users", v1.GetUsers)
+		router.PUT("user/:id", v1.EditUser)
+		router.DELETE("user/:id", v1.DeleteUser)
+
+		//分类模块的路由接口
+
+		//文章模块的路由接口
 	}
 
 	// 启动HTTP服务（从配置中读取端口号）
 	// utils.HttpPort 示例值：":8080"（冒号+端口号格式）
-	r.Run(utils.HttpPort) 
+	err := r.Run(utils.HttpPort)
+	if err != nil {
+		return
+	}
 }
