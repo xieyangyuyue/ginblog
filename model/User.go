@@ -1,7 +1,10 @@
 package model
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"ginblog/utils/errmsg"
+	"golang.org/x/crypto/scrypt"
 	"gorm.io/gorm"
 )
 
@@ -26,12 +29,25 @@ func CheckUser(name string) (code int) {
 	return errmsg.Success // 返回成功码 200
 }
 
+// CheckUpUser 更新查询
+func CheckUpUser(id int, name string) (code int) {
+	var user User
+	db.Select("id, username").Where("username = ?", name).First(&user)
+	if user.ID == uint(id) {
+		return errmsg.Success
+	}
+	if user.ID > 0 {
+		return errmsg.ErrorUsernameUsed //1001
+	}
+	return errmsg.Success
+}
+
 // CreateUser 创建新用户
 // 参数 data: 用户数据指针
 // 返回值 int: 错误码（成功或错误类型）
 func CreateUser(data *User) int {
 	// 密码加密逻辑（示例中暂时被注释）
-	// data.Password = ScryptPw(data.Password)
+	//data.Password = ScryptPw(data.Password)
 
 	// 执行数据库插入操作
 	err := db.Create(&data).Error
@@ -62,4 +78,67 @@ func GetUsers(username string, pageSize int, pageNum int) ([]User, int64) {
 		return users, 0
 	}
 	return users, total
+}
+
+// EditUser 编辑用户信息
+func EditUser(id int, data *User) int {
+	var user User
+	var maps = make(map[string]interface{})
+	maps["username"] = data.Username
+	maps["role"] = data.Role
+	err := db.Model(&user).Where("id = ? ", id).Updates(maps).Error
+	if err != nil {
+		return errmsg.Error
+	}
+	return errmsg.Success
+}
+
+// DeleteUser 删除用户
+func DeleteUser(id int) int {
+	var user User
+	err := db.Where("id = ? ", id).Delete(&user).Error
+	if err != nil {
+		return errmsg.Error
+	}
+	return errmsg.Success
+}
+
+// BeforeCreate 密码加密&权限控制
+func (u *User) BeforeCreate(_ *gorm.DB) (err error) {
+	u.Password = ScryptPw(u.Password)
+	u.Role = 2
+	return nil
+}
+
+// ScryptPw 使用scrypt算法安全地处理密码存储
+// 参数:	password - 用户输入的明文密码字符串
+// 返回值:string - 包含随机盐值和哈希值的Base64组合字符串 error  - 执行过程中的错误信息
+func ScryptPw(password string) string {
+	// 算法参数配置（符合OWASP推荐基准）
+	const (
+		N       = 32768 // CPU/Memory开销参数，每轮迭代次数（需权衡安全性与性能）
+		r       = 8     // 内存块大小参数，每个块的大小（字节数）
+		p       = 1     // 并行度参数，建议保持为1避免侧信道攻击
+		KeyLen  = 32    // 输出密钥长度（32字节=256位，满足AES-256安全要求）
+		saltLen = 16    // 盐值长度（16字节=128位，推荐最小值）
+	)
+	// 生成密码学安全的随机盐值
+	salt := make([]byte, saltLen)
+	if _, err := rand.Read(salt); err != nil {
+		return "" // 封装底层错误信息
+	}
+	// 执行scrypt密钥派生运算
+	hash, err := scrypt.Key(
+		[]byte(password), // 明文密码转换为字节切片
+		salt,             // 使用新生成的随机盐值
+		N, r, p,          // 调优后的算法参数
+		KeyLen, // 指定输出密钥长度
+	)
+	if err != nil {
+		return ""
+	}
+	// 组合盐值与哈希值（存储时需要完整保留）
+	combined := append(salt, hash...) // 前16字节为盐，后32字节为哈希
+	// 使用URL安全的Base64编码（避免+/字符，适合数据库存储）
+	return base64.URLEncoding.EncodeToString(combined)
 }

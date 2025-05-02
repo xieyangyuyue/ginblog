@@ -40,6 +40,7 @@ func AddUser(c *gin.Context) {
 	c.JSON(
 		http.StatusOK, gin.H{
 			"status":  code,
+			"data":    data,
 			"message": errmsg.GetErrMsg(code),
 		},
 	)
@@ -95,6 +96,25 @@ func GetUsers(c *gin.Context) {
 // @Router /api/v1/user/{id} [put]
 func EditUser(c *gin.Context) {
 	// TODO: 根据ID修改用户信息逻辑
+	var data model.User
+	id, _ := strconv.Atoi(c.Param("id"))
+	_ = c.ShouldBindJSON(&data)
+
+	code := model.CheckUpUser(id, data.Username)
+	if code == errmsg.Success {
+		model.EditUser(id, &data)
+	}
+	if code == errmsg.ErrorUsernameUsed {
+		c.Abort()
+	}
+
+	c.JSON(
+		http.StatusOK, gin.H{
+			"status":  code,
+			"data":    data,
+			"message": errmsg.GetErrMsg(code),
+		},
+	)
 }
 
 // DeleteUser 删除用户
@@ -107,4 +127,14 @@ func EditUser(c *gin.Context) {
 // @Router /api/v1/user/{id} [delete]
 func DeleteUser(c *gin.Context) {
 	// TODO: 根据ID软删除用户逻辑
+	id, _ := strconv.Atoi(c.Param("id"))
+
+	code := model.DeleteUser(id)
+
+	c.JSON(
+		http.StatusOK, gin.H{
+			"status":  code,
+			"message": errmsg.GetErrMsg(code),
+		},
+	)
 }
