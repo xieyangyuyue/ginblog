@@ -6,15 +6,15 @@ import (
 )
 
 type Article struct {
-	Category Category `gorm:"foreignkey:Cid"`
+	Category Category `gorm:"foreignkey:Cid;references:ID"`
 	gorm.Model
-	Title   string `gorm:"type:varchar(100);not null" json:"title"`
-	Cid     int    `gorm:"type:int;not null" json:"cid"`
-	Desc    string `gorm:"type:varchar(200)" json:"desc"`
-	Content string `gorm:"type:longtext" json:"content"`
-	Img     string `gorm:"type:varchar(100)" json:"img"`
-	//CommentCount int    `gorm:"type:int;not null;default:0" json:"comment_count"`
-	//ReadCount    int    `gorm:"type:int;not null;default:0" json:"read_count"`
+	Title        string `gorm:"type:varchar(100);not null" json:"title"`
+	Cid          int    `gorm:"type:int;not null" json:"cid"`
+	Desc         string `gorm:"type:varchar(200)" json:"desc"`
+	Content      string `gorm:"type:longtext" json:"content"`
+	Img          string `gorm:"type:varchar(100)" json:"img"`
+	CommentCount int    `gorm:"type:int;not null;default:0" json:"comment_count"`
+	ReadCount    int    `gorm:"type:int;not null;default:0" json:"read_count"`
 }
 
 // CreateArt 新增文章
@@ -53,17 +53,26 @@ func GetArtInfo(id int) (Article, int) {
 
 // GetArt 查询文章列表
 func GetArt(pageSize int, pageNum int) ([]Article, int, int64) {
-	var articleList []Article
-	var err error
+	//var articleList []Article
+	//var err error
+	//var total int64
+	//
+	//err = db.Select("article.id, title, img, created_at, updated_at, `desc`, comment_count, read_count, category.name").Limit(pageSize).Offset((pageNum - 1) * pageSize).Order("Created_At DESC").Joins("Category").Find(&articleList).Error
+	//// 单独计数
+	//db.Model(&articleList).Count(&total)
+	//if err != nil {
+	//	return nil, errmsg.Error, 0
+	//}
+	//return articleList, errmsg.Success, total
+
+	var cateArtList []Article
 	var total int64
 
-	err = db.Select("article.id, title, img, created_at, updated_at, `desc`, comment_count, read_count, category.name").Limit(pageSize).Offset((pageNum - 1) * pageSize).Order("Created_At DESC").Joins("Category").Find(&articleList).Error
-	// 单独计数
-	db.Model(&articleList).Count(&total)
+	err := db.Preload("Category").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&cateArtList).Error
 	if err != nil {
 		return nil, errmsg.Error, 0
 	}
-	return articleList, errmsg.Success, total
+	return cateArtList, errmsg.Success, total
 
 }
 
