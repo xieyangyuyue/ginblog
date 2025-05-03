@@ -11,9 +11,9 @@ import (
 // User 用户模型（对应数据库表）
 type User struct {
 	gorm.Model        // 内嵌 gorm.Model，包含字段 ID、CreatedAt、UpdatedAt、DeletedAt
-	Username   string `gorm:"type:varchar(20);not null"`                  // 用户名，数据库约束：长度20，非空
-	Password   string `gorm:"type:varchar(500);not null" json:"password"` // 密码，存储加密后的值（包含盐值），非空
-	Role       int    `gorm:"type:int;DEFAULT:2" json:"role"`             // 角色，1-管理员，2-普通用户，默认值2
+	Username   string `gorm:"type:varchar(20);not null " json:"username" validate:"required,min=4,max=12" label:"用户名"` // 用户名，数据库约束：长度20，非空
+	Password   string `gorm:"type:varchar(500);not null" json:"password" validate:"required,min=6,max=120" label:"密码"` // 密码，存储加密后的值（包含盐值），非空
+	Role       int    `gorm:"type:int;DEFAULT:2" json:"role" validate:"required,gte=2" label:"角色码"`                    // 角色，1-管理员，2-普通用户，默认值2
 }
 
 // CheckUser 检查用户名是否存在

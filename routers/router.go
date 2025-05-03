@@ -24,7 +24,7 @@ func InitRouter() {
 	//r.HTMLRender = createMyRender()
 	r.Use(middleware.Logger())
 	r.Use(gin.Recovery())
-	//r.Use(middleware.Cors())
+	r.Use(middleware.Cors())
 	// 创建API路由分组（版本控制）
 	// 所有路由将以 /api/v1/ 作为前缀
 	auth := r.Group("api/v1")

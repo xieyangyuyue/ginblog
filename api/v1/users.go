@@ -3,6 +3,7 @@ package v1
 import (
 	"ginblog/model"
 	"ginblog/utils/errmsg"
+	"ginblog/utils/validator"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -21,12 +22,25 @@ import (
 // 处理 POST 请求，接收 JSON 格式用户数据，创建新用户
 func AddUser(c *gin.Context) {
 	var data model.User
+	var msg string
+	var validCode int
 	// 绑定请求中的 JSON 数据到 User 结构体
 	if err := c.ShouldBindJSON(&data); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求数据"})
 		return
 	}
 
+	msg, validCode = validator.Validate(&data)
+	if validCode != errmsg.Success {
+		c.JSON(
+			http.StatusOK, gin.H{
+				"status":  validCode,
+				"message": msg,
+			},
+		)
+		c.Abort()
+		return
+	}
 	// 检查用户名是否已存在
 	code := model.CheckUser(data.Username)
 	if code == errmsg.Success {

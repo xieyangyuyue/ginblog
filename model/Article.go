@@ -68,7 +68,7 @@ func GetArt(pageSize int, pageNum int) ([]Article, int, int64) {
 	var cateArtList []Article
 	var total int64
 
-	err := db.Preload("Category").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&cateArtList).Error
+	err := db.Preload("Category").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&cateArtList).Count(&total).Error
 	if err != nil {
 		return nil, errmsg.Error, 0
 	}
