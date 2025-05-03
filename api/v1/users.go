@@ -33,7 +33,7 @@ func AddUser(c *gin.Context) {
 		// 用户名未占用，执行创建操作
 		model.CreateUser(&data)
 	}
-	if code == errmsg.ErrorUserNoRight {
+	if code == errmsg.ErrorUsernameUsed {
 		code = errmsg.ErrorUsernameUsed
 	}
 	// 返回操作结果（状态码和消息）

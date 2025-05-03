@@ -12,7 +12,7 @@ import (
 type User struct {
 	gorm.Model        // 内嵌 gorm.Model，包含字段 ID、CreatedAt、UpdatedAt、DeletedAt
 	Username   string `gorm:"type:varchar(20);not null"`                  // 用户名，数据库约束：长度20，非空
-	Password   string `gorm:"type:varchar(500);not null" json:"password"` // 密码，存储加密后的值，非空
+	Password   string `gorm:"type:varchar(500);not null" json:"password"` // 密码，存储加密后的值（包含盐值），非空
 	Role       int    `gorm:"type:int;DEFAULT:2" json:"role"`             // 角色，1-管理员，2-普通用户，默认值2
 }
 
@@ -103,42 +103,125 @@ func DeleteUser(id int) int {
 	return errmsg.Success
 }
 
-// BeforeCreate 密码加密&权限控制
+// BeforeCreate 密码加密&权限控制（GORM 创建钩子）
 func (u *User) BeforeCreate(_ *gorm.DB) (err error) {
-	u.Password = ScryptPw(u.Password)
-	u.Role = 2
+	u.Password = ScryptPw(u.Password) // 创建用户时自动加密密码
+	u.Role = 2                        // 默认角色为普通用户
 	return nil
 }
 
-// ScryptPw 使用scrypt算法安全地处理密码存储
-// 参数:	password - 用户输入的明文密码字符串
-// 返回值:string - 包含随机盐值和哈希值的Base64组合字符串 error  - 执行过程中的错误信息
+// ScryptPw 使用scrypt算法安全处理密码存储
+// 参数: password - 用户输入的明文密码字符串
+// 返回值: string - 包含随机盐值和哈希值的Base64组合字符串
 func ScryptPw(password string) string {
-	// 算法参数配置（符合OWASP推荐基准）
 	const (
-		N       = 32768 // CPU/Memory开销参数，每轮迭代次数（需权衡安全性与性能）
-		r       = 8     // 内存块大小参数，每个块的大小（字节数）
-		p       = 1     // 并行度参数，建议保持为1避免侧信道攻击
-		KeyLen  = 32    // 输出密钥长度（32字节=256位，满足AES-256安全要求）
-		saltLen = 16    // 盐值长度（16字节=128位，推荐最小值）
+		N       = 32768 // CPU/Memory开销参数（符合OWASP推荐）
+		r       = 8     // 内存块大小
+		p       = 1     // 并行度
+		KeyLen  = 32    // 输出密钥长度（32字节=256位）
+		saltLen = 16    // 盐值长度（16字节=128位）
 	)
+
 	// 生成密码学安全的随机盐值
 	salt := make([]byte, saltLen)
 	if _, err := rand.Read(salt); err != nil {
-		return "" // 封装底层错误信息
+		return ""
 	}
-	// 执行scrypt密钥派生运算
-	hash, err := scrypt.Key(
-		[]byte(password), // 明文密码转换为字节切片
-		salt,             // 使用新生成的随机盐值
-		N, r, p,          // 调优后的算法参数
-		KeyLen, // 指定输出密钥长度
-	)
+
+	// 执行scrypt密钥派生
+	hash, err := scrypt.Key([]byte(password), salt, N, r, p, KeyLen)
 	if err != nil {
 		return ""
 	}
-	// 组合盐值与哈希值（存储时需要完整保留）
-	combined := append(salt, hash...) // 前16字节为盐，后32字节为哈希
-	// 使用URL安全的Base64编码（避免+/字符，适合数据库存储）
-	return base64.URLEncoding.EncodeToString(combined)
+
+	// 组合盐值(16B) + 哈希值(32B)并进行Base64编码
+	return base64.URLEncoding.EncodeToString(append(salt, hash...))
+}
+
+// CheckLogin 后台登录验证（管理员）
+// 参数: username - 用户名, password - 明文密码
+// 返回值: User - 用户对象, int - 状态码
+func CheckLogin(username string, password string) (User, int) {
+	var user User
+	db.Where("username = ?", username).First(&user)
+
+	// 用户不存在
+	if user.ID == 0 {
+		return user, errmsg.ErrorUserNotExist
+	}
+
+	// 验证密码
+	if code := VerifyScryptPassword(user.Password, password); code != errmsg.Success {
+		return user, code
+	}
+
+	// 检查管理员权限
+	if user.Role != 1 {
+		return user, errmsg.ErrorUserNoRight
+	}
+
+	return user, errmsg.Success
+}
+
+// CheckLoginFront 前台登录验证（普通用户）
+func CheckLoginFront(username string, password string) (User, int) {
+	var user User
+	db.Where("username = ?", username).First(&user)
+
+	if user.ID == 0 {
+		return user, errmsg.ErrorUserNotExist
+	}
+
+	if code := VerifyScryptPassword(user.Password, password); code != errmsg.Success {
+		return user, code
+	}
+
+	return user, errmsg.Success
+}
+
+// VerifyScryptPassword 验证scrypt加密的密码
+// 参数: storedHash - 数据库存储的哈希字符串, inputPassword - 用户输入的明文密码
+// 返回值: int - 状态码
+func VerifyScryptPassword(storedHash, inputPassword string) int {
+	// Base64解码存储的哈希值
+	decoded, err := base64.URLEncoding.DecodeString(storedHash)
+	if err != nil {
+		return errmsg.ErrorPasswordVerify
+	}
+
+	// 分离盐值(前16字节)和哈希值(后32字节)
+	if len(decoded) < 16+32 {
+		return errmsg.ErrorPasswordVerify
+	}
+	salt := decoded[:16]
+	storedHashBytes := decoded[16:]
+
+	// 使用相同参数重新计算哈希
+	newHash, err := scrypt.Key(
+		[]byte(inputPassword),
+		salt,
+		32768, 8, 1, 32,
+	)
+	if err != nil {
+		return errmsg.ErrorPasswordVerify
+	}
+
+	// 比较哈希值
+	if !compareHashes(storedHashBytes, newHash) {
+		return errmsg.ErrorPasswordWrong
+	}
+
+	return errmsg.Success
+}
+
+// compareHashes 安全比较哈希值（防止时序攻击）
+func compareHashes(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	var diff uint8
+	for i := 0; i < len(a); i++ {
+		diff |= a[i] ^ b[i]
+	}
+	return diff == 0
 }

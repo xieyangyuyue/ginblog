@@ -11,6 +11,7 @@ const (
 const (
 	ErrorUsernameUsed   = 1001 + iota // 用户名已被使用
 	ErrorPasswordWrong                // 密码不正确
+	ErrorPasswordVerify               //密码认证失败
 	ErrorUserNotExist                 // 用户不存在
 	ErrorTokenExist                   // TOKEN不存在
 	ErrorTokenRuntime                 // TOKEN已过期

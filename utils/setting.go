@@ -7,19 +7,19 @@ import (
 
 // 全局配置变量（包级作用域）
 var (
-	// 服务器配置
+	// AppMode 服务器配置
 	AppMode  string // 应用模式（debug/release）
 	HttpPort string // HTTP服务端口
 	JwtKey   string // JWT令牌加密密钥
 
-	// 数据库配置
+	// DbHost 数据库配置
 	DbHost     string // 数据库主机地址
 	DbPort     string // 数据库端口
 	DbUser     string // 数据库用户名
 	DbPassWord string // 数据库密码（注意：建议从环境变量获取敏感信息）
 	DbName     string // 数据库名称
 
-	// 七牛云存储配置
+	// Zone 七牛云存储配置
 	Zone       int    // 存储区域编号（1:华东 2:华北 3:华南）
 	AccessKey  string // 七牛云AccessKey
 	SecretKey  string // 七牛云SecretKey
@@ -40,7 +40,7 @@ func init() {
 	LoadQiniu(file)  // 加载七牛云配置
 }
 
-// 加载服务器配置模块
+// LoadServer 加载服务器配置模块
 func LoadServer(file *ini.File) {
 	// 从[server]区块读取配置项，MustString设置默认值
 	section := file.Section("server")
@@ -49,7 +49,7 @@ func LoadServer(file *ini.File) {
 	JwtKey = section.Key("JwtKey").MustString("89js82js72") // 默认测试用密钥（生产环境必须修改！）
 }
 
-// 加载数据库配置模块
+// LoadData 加载数据库配置模块
 func LoadData(file *ini.File) {
 	section := file.Section("database")
 	DbHost = section.Key("DbHost").MustString("localhost") // 默认本地数据库
@@ -59,7 +59,7 @@ func LoadData(file *ini.File) {
 	DbName = section.Key("DbName").MustString("ginblog")   // 默认数据库名
 }
 
-// 加载七牛云配置模块
+// LoadQiniu 加载七牛云配置模块
 func LoadQiniu(file *ini.File) {
 	section := file.Section("qiniu")
 	Zone = section.Key("Zone").MustInt(1)           // 默认华东区域
