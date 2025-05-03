@@ -48,8 +48,8 @@ func InitRouter() {
 		auth.PUT("article/:id", v1.EditArt)
 		//删除文章
 		auth.DELETE("article/:id", v1.DeleteArt)
-		//// 上传文件
-		//auth.POST("upload", v1.UpLoad)
+		// 上传文件
+		auth.POST("upload", v1.UpLoad)
 		//// 更新个人设置
 		//auth.GET("admin/profile/:id", v1.GetProfile)
 		//auth.PUT("profile/:id", v1.UpdateProfile)
