@@ -21,6 +21,8 @@ import (
 // @Router /api/v1/user [post]
 // 处理 POST 请求，接收 JSON 格式用户数据，创建新用户
 func AddUser(c *gin.Context) {
+	// 获取请求上下文
+	ctx := c.Request.Context()
 	var data model.User
 	var msg string
 	var validCode int
@@ -42,10 +44,10 @@ func AddUser(c *gin.Context) {
 		return
 	}
 	// 检查用户名是否已存在
-	code := model.CheckUser(data.Username)
+	code := model.CheckUser(ctx, data.Username)
 	if code == errmsg.Success {
 		// 用户名未占用，执行创建操作
-		model.CreateUser(&data)
+		model.CreateUser(ctx, &data)
 	}
 	if code == errmsg.ErrorUsernameUsed {
 		code = errmsg.ErrorUsernameUsed
@@ -69,6 +71,7 @@ func AddUser(c *gin.Context) {
 // @Router /api/v1/users [get]
 func GetUsers(c *gin.Context) {
 	// TODO: 分页查询用户列表逻辑
+	ctx := c.Request.Context()
 	pageSize, _ := strconv.Atoi(c.Query("pagesize"))
 	pageNum, _ := strconv.Atoi(c.Query("pagenum"))
 	username := c.Query("username")
@@ -84,7 +87,7 @@ func GetUsers(c *gin.Context) {
 		pageNum = 1
 	}
 
-	data, total := model.GetUsers(username, pageSize, pageNum)
+	data, total := model.GetUsers(ctx, username, pageSize, pageNum)
 
 	code := errmsg.Success
 	c.JSON(
@@ -110,13 +113,14 @@ func GetUsers(c *gin.Context) {
 // @Router /api/v1/user/{id} [put]
 func EditUser(c *gin.Context) {
 	// TODO: 根据ID修改用户信息逻辑
+	ctx := c.Request.Context()
 	var data model.User
 	id, _ := strconv.Atoi(c.Param("id"))
 	_ = c.ShouldBindJSON(&data)
 
-	code := model.CheckUpUser(id, data.Username)
+	code := model.CheckUpUser(ctx, id, data.Username)
 	if code == errmsg.Success {
-		model.EditUser(id, &data)
+		model.EditUser(ctx, id, &data)
 	}
 	if code == errmsg.ErrorUsernameUsed {
 		c.Abort()
@@ -141,9 +145,10 @@ func EditUser(c *gin.Context) {
 // @Router /api/v1/user/{id} [delete]
 func DeleteUser(c *gin.Context) {
 	// TODO: 根据ID软删除用户逻辑
+	ctx := c.Request.Context()
 	id, _ := strconv.Atoi(c.Param("id"))
 
-	code := model.DeleteUser(id)
+	code := model.DeleteUser(ctx, id)
 
 	c.JSON(
 		http.StatusOK, gin.H{

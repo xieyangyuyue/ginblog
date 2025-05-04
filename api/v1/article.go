@@ -10,13 +10,14 @@ import (
 
 // AddArticle 添加文章
 func AddArticle(c *gin.Context) {
+	ctx := c.Request.Context()
 	var data model.Article
 	// 绑定请求中的 JSON 数据到 User 结构体
 	if err := c.ShouldBindJSON(&data); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求数据"})
 		return
 	}
-	code := model.CreateArt(&data)
+	code := model.CreateArt(ctx, &data)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  code,
@@ -27,6 +28,7 @@ func AddArticle(c *gin.Context) {
 
 // GetCateArt 查询分类下的所有文章
 func GetCateArt(c *gin.Context) {
+	ctx := c.Request.Context()
 	pageSize, _ := strconv.Atoi(c.Query("pagesize"))
 	pageNum, _ := strconv.Atoi(c.Query("pagenum"))
 	id, _ := strconv.Atoi(c.Param("id"))
@@ -42,7 +44,7 @@ func GetCateArt(c *gin.Context) {
 		pageNum = 1
 	}
 
-	data, code, total := model.GetCateArt(id, pageSize, pageNum)
+	data, code, total := model.GetCateArt(ctx, id, pageSize, pageNum)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  code,
@@ -54,8 +56,9 @@ func GetCateArt(c *gin.Context) {
 
 // GetArtInfo 查询单个文章信息
 func GetArtInfo(c *gin.Context) {
+	ctx := c.Request.Context()
 	id, _ := strconv.Atoi(c.Param("id"))
-	data, code := model.GetArtInfo(id)
+	data, code := model.GetArtInfo(ctx, id)
 	c.JSON(http.StatusOK, gin.H{
 		"status":  code,
 		"data":    data,
@@ -65,6 +68,7 @@ func GetArtInfo(c *gin.Context) {
 
 // GetArt 查询文章列表
 func GetArt(c *gin.Context) {
+	ctx := c.Request.Context()
 	pageSize, _ := strconv.Atoi(c.Query("pagesize"))
 	pageNum, _ := strconv.Atoi(c.Query("pagenum"))
 	title := c.Query("title")
@@ -80,7 +84,7 @@ func GetArt(c *gin.Context) {
 		pageNum = 1
 	}
 	if len(title) == 0 {
-		data, code, total := model.GetArt(pageSize, pageNum)
+		data, code, total := model.GetArt(ctx, pageSize, pageNum)
 		c.JSON(http.StatusOK, gin.H{
 			"status":  code,
 			"data":    data,
@@ -90,7 +94,7 @@ func GetArt(c *gin.Context) {
 		return
 	}
 
-	data, code, total := model.SearchArticle(title, pageSize, pageNum)
+	data, code, total := model.SearchArticle(ctx, title, pageSize, pageNum)
 	c.JSON(http.StatusOK, gin.H{
 		"status":  code,
 		"data":    data,
@@ -101,11 +105,12 @@ func GetArt(c *gin.Context) {
 
 // EditArt 编辑文章
 func EditArt(c *gin.Context) {
+	ctx := c.Request.Context()
 	var data model.Article
 	id, _ := strconv.Atoi(c.Param("id"))
 	_ = c.ShouldBindJSON(&data)
 
-	code := model.EditArt(id, &data)
+	code := model.EditArt(ctx, id, &data)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  code,
@@ -115,9 +120,10 @@ func EditArt(c *gin.Context) {
 
 // DeleteArt 删除文章
 func DeleteArt(c *gin.Context) {
+	ctx := c.Request.Context()
 	id, _ := strconv.Atoi(c.Param("id"))
 
-	code := model.DeleteArt(id)
+	code := model.DeleteArt(ctx, id)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  code,

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"ginblog/utils/errmsg"
 	"gorm.io/gorm"
 )
@@ -18,8 +19,8 @@ type Article struct {
 }
 
 // CreateArt 新增文章
-func CreateArt(data *Article) int {
-	err := db.Create(&data).Error
+func CreateArt(ctx context.Context, data *Article) int {
+	err := db.WithContext(ctx).Create(&data).Error
 	if err != nil {
 		return errmsg.Error
 	}
@@ -27,13 +28,13 @@ func CreateArt(data *Article) int {
 }
 
 // GetCateArt 查询分类下的所有文章
-func GetCateArt(id int, pageSize int, pageNum int) ([]Article, int, int64) {
+func GetCateArt(ctx context.Context, id int, pageSize int, pageNum int) ([]Article, int, int64) {
 	var cateArtList []Article
 	var total int64
 
-	err := db.Preload("Category").Limit(pageSize).Offset((pageNum-1)*pageSize).Where(
+	err := db.WithContext(ctx).Preload("Category").Limit(pageSize).Offset((pageNum-1)*pageSize).Where(
 		"cid =?", id).Find(&cateArtList).Error
-	db.Model(&cateArtList).Where("cid =?", id).Count(&total)
+	db.WithContext(ctx).Model(&cateArtList).Where("cid =?", id).Count(&total)
 	if err != nil {
 		return nil, errmsg.ErrorCateNotExist, 0
 	}
@@ -41,10 +42,10 @@ func GetCateArt(id int, pageSize int, pageNum int) ([]Article, int, int64) {
 }
 
 // GetArtInfo 查询单个文章
-func GetArtInfo(id int) (Article, int) {
+func GetArtInfo(ctx context.Context, id int) (Article, int) {
 	var art Article
-	err := db.Where("id = ?", id).Preload("Category").First(&art).Error
-	db.Model(&art).Where("id = ?", id).UpdateColumn("read_count", gorm.Expr("read_count + ?", 1))
+	err := db.WithContext(ctx).Where("id = ?", id).Preload("Category").First(&art).Error
+	db.WithContext(ctx).Model(&art).Where("id = ?", id).UpdateColumn("read_count", gorm.Expr("read_count + ?", 1))
 	if err != nil {
 		return art, errmsg.ErrorCateNotExist
 	}
@@ -52,7 +53,7 @@ func GetArtInfo(id int) (Article, int) {
 }
 
 // GetArt 查询文章列表
-func GetArt(pageSize int, pageNum int) ([]Article, int, int64) {
+func GetArt(ctx context.Context, pageSize int, pageNum int) ([]Article, int, int64) {
 	//var articleList []Article
 	//var err error
 	//var total int64
@@ -68,7 +69,7 @@ func GetArt(pageSize int, pageNum int) ([]Article, int, int64) {
 	var cateArtList []Article
 	var total int64
 
-	err := db.Preload("Category").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&cateArtList).Count(&total).Error
+	err := db.WithContext(ctx).Preload("Category").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&cateArtList).Count(&total).Error
 	if err != nil {
 		return nil, errmsg.Error, 0
 	}
@@ -77,15 +78,15 @@ func GetArt(pageSize int, pageNum int) ([]Article, int, int64) {
 }
 
 // SearchArticle 搜索文章标题
-func SearchArticle(title string, pageSize int, pageNum int) ([]Article, int, int64) {
+func SearchArticle(ctx context.Context, title string, pageSize int, pageNum int) ([]Article, int, int64) {
 	var articleList []Article
 	var err error
 	var total int64
-	err = db.Select("article.id,title, img, created_at, updated_at, `desc`, comment_count, read_count, Category.name").Order("Created_At DESC").Joins("Category").Where("title LIKE ?",
+	err = db.WithContext(ctx).Select("article.id,title, img, created_at, updated_at, `desc`, comment_count, read_count, Category.name").Order("Created_At DESC").Joins("Category").Where("title LIKE ?",
 		title+"%",
 	).Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&articleList).Error
 	//单独计数
-	db.Model(&articleList).Where("title LIKE ?",
+	db.WithContext(ctx).Model(&articleList).Where("title LIKE ?",
 		title+"%",
 	).Count(&total)
 
@@ -96,7 +97,7 @@ func SearchArticle(title string, pageSize int, pageNum int) ([]Article, int, int
 }
 
 // EditArt 编辑文章
-func EditArt(id int, data *Article) int {
+func EditArt(ctx context.Context, id int, data *Article) int {
 	var art Article
 	var maps = make(map[string]interface{})
 	maps["title"] = data.Title
@@ -105,7 +106,7 @@ func EditArt(id int, data *Article) int {
 	maps["content"] = data.Content
 	maps["img"] = data.Img
 
-	err := db.Model(&art).Where("id = ? ", id).Updates(&maps).Error
+	err := db.WithContext(ctx).Model(&art).Where("id = ? ", id).Updates(&maps).Error
 	if err != nil {
 		return errmsg.Error
 	}
@@ -113,9 +114,9 @@ func EditArt(id int, data *Article) int {
 }
 
 // DeleteArt 删除文章
-func DeleteArt(id int) int {
+func DeleteArt(ctx context.Context, id int) int {
 	var art Article
-	err := db.Where("id = ? ", id).Delete(&art).Error
+	err := db.WithContext(ctx).Where("id = ? ", id).Delete(&art).Error
 	if err != nil {
 		return errmsg.Error
 	}

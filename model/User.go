@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"ginblog/utils/errmsg"
@@ -19,10 +20,10 @@ type User struct {
 // CheckUser 检查用户名是否存在
 // 参数 name: 待检查的用户名
 // 返回值 code: 错误码（成功或错误类型）
-func CheckUser(name string) (code int) {
+func CheckUser(ctx context.Context, name string) (code int) {
 	var user User
 	// 查询数据库中是否存在同名用户（只查询ID字段）
-	db.Debug().Select("id").Where("username = ?", name).First(&user)
+	db.WithContext(ctx).Debug().Select("id").Where("username = ?", name).First(&user)
 	if user.ID > 0 {
 		return errmsg.ErrorUsernameUsed // 返回错误码 1001（此处逻辑可能需要调整，通常应为“用户名已存在”）
 	}
@@ -30,9 +31,9 @@ func CheckUser(name string) (code int) {
 }
 
 // CheckUpUser 更新查询
-func CheckUpUser(id int, name string) (code int) {
+func CheckUpUser(ctx context.Context, id int, name string) (code int) {
 	var user User
-	db.Debug().Select("id, username").Where("username = ?", name).First(&user)
+	db.WithContext(ctx).Debug().Select("id, username").Where("username = ?", name).First(&user)
 	if user.ID == uint(id) {
 		return errmsg.Success
 	}
@@ -45,12 +46,12 @@ func CheckUpUser(id int, name string) (code int) {
 // CreateUser 创建新用户
 // 参数 data: 用户数据指针
 // 返回值 int: 错误码（成功或错误类型）
-func CreateUser(data *User) int {
+func CreateUser(ctx context.Context, data *User) int {
 	// 密码加密逻辑（示例中暂时被注释）
 	//data.Password = ScryptPw(data.Password)
 
 	// 执行数据库插入操作
-	err := db.Debug().Create(&data).Error
+	err := db.WithContext(ctx).Debug().Create(&data).Error
 	if err != nil {
 		return errmsg.Error // 返回错误码 500
 	}
@@ -58,12 +59,12 @@ func CreateUser(data *User) int {
 }
 
 // GetUsers 查询用户列表
-func GetUsers(username string, pageSize int, pageNum int) ([]User, int64) {
+func GetUsers(ctx context.Context, username string, pageSize int, pageNum int) ([]User, int64) {
 	var users []User
 	var total int64
 
 	if username != "" {
-		db.Debug().Select("id,username,role,created_at").Where(
+		db.WithContext(ctx).Debug().Select("id,username,role,created_at").Where(
 			"username LIKE ?", username+"%",
 		).Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&users)
 		db.Model(&users).Where(
@@ -71,7 +72,7 @@ func GetUsers(username string, pageSize int, pageNum int) ([]User, int64) {
 		).Count(&total)
 		return users, total
 	}
-	err := db.Debug().Select("id,username,role,created_at").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&users)
+	err := db.WithContext(ctx).Debug().Select("id,username,role,created_at").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&users)
 	db.Model(&users).Count(&total)
 
 	if err != nil {
@@ -81,12 +82,12 @@ func GetUsers(username string, pageSize int, pageNum int) ([]User, int64) {
 }
 
 // EditUser 编辑用户信息
-func EditUser(id int, data *User) int {
+func EditUser(ctx context.Context, id int, data *User) int {
 	var user User
 	var maps = make(map[string]interface{})
 	maps["username"] = data.Username
 	maps["role"] = data.Role
-	err := db.Model(&user).Where("id = ? ", id).Updates(maps).Error
+	err := db.WithContext(ctx).Model(&user).Where("id = ? ", id).Updates(maps).Error
 	if err != nil {
 		return errmsg.Error
 	}
@@ -94,9 +95,9 @@ func EditUser(id int, data *User) int {
 }
 
 // DeleteUser 删除用户
-func DeleteUser(id int) int {
+func DeleteUser(ctx context.Context, id int) int {
 	var user User
-	err := db.Debug().Where("id = ? ", id).Delete(&user).Error
+	err := db.WithContext(ctx).Debug().Where("id = ? ", id).Delete(&user).Error
 	if err != nil {
 		return errmsg.Error
 	}
@@ -141,9 +142,9 @@ func ScryptPw(password string) string {
 // CheckLogin 后台登录验证（管理员）
 // 参数: username - 用户名, password - 明文密码
 // 返回值: User - 用户对象, int - 状态码
-func CheckLogin(username string, password string) (User, int) {
+func CheckLogin(ctx context.Context, username string, password string) (User, int) {
 	var user User
-	db.Debug().Where("username = ?", username).First(&user)
+	db.WithContext(ctx).Debug().Where("username = ?", username).First(&user)
 
 	// 用户不存在
 	if user.ID == 0 {
@@ -164,9 +165,9 @@ func CheckLogin(username string, password string) (User, int) {
 }
 
 // CheckLoginFront 前台登录验证（普通用户）
-func CheckLoginFront(username string, password string) (User, int) {
+func CheckLoginFront(ctx context.Context, username string, password string) (User, int) {
 	var user User
-	db.Debug().Where("username = ?", username).First(&user)
+	db.WithContext(ctx).Debug().Where("username = ?", username).First(&user)
 
 	if user.ID == 0 {
 		return user, errmsg.ErrorUserNotExist

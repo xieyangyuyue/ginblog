@@ -25,8 +25,9 @@ func InitDb() {
 		utils.DbPort,
 		utils.DbName,
 	)
-	// 配置GORM日志（更新为以下内容）
-	newLogger := logger.New(
+
+	// 创建独立的Logger配置
+	gormLogger := logger.New(
 		logrus.StandardLogger(),
 		logger.Config{
 			SlowThreshold:             time.Second,
@@ -36,10 +37,10 @@ func InitDb() {
 			Colorful:                  true, // 控制台彩色输出
 		},
 	)
+
 	// 初始化GORM配置
 	config := &gorm.Config{
-		Logger: newLogger,
-		//Logger: logger.Default.LogMode(logger.Silent), // 静默日志模式
+		Logger: gormLogger, // 直接使用新创建的logger
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true, // 单数表名
 		},
@@ -47,17 +48,40 @@ func InitDb() {
 		DisableForeignKeyConstraintWhenMigrating: false, // 注意这里保持外键约束
 	}
 
-	// 连接数据库
+	// 连接数据库（此时才首次初始化db变量）
 	var err error
-	if db, err = gorm.Open(mysql.Open(dns), config); err != nil {
+	db, err = gorm.Open(mysql.Open(dns), config)
+	if err != nil {
 		log.Fatal("数据库连接失败: ", err)
 		os.Exit(1)
 	}
+
 	// ✅ 正确位置：在数据库连接成功后执行测试查询
 	if err := db.Debug().Exec("SELECT 1 + 1").Error; err != nil {
 		log.Fatal("数据库连接测试失败: ", err)
 		os.Exit(1)
 	}
+
+	// 添加上下文处理器
+	db.Callback().Query().Before(`gorm:query`).Register("get_context", func(db *gorm.DB) {
+		if ctx := db.Statement.Context; ctx != nil {
+			if requestID, ok := ctx.Value("RequestID").(string); ok {
+				db.InstanceSet("request_id", requestID)
+			}
+		}
+	})
+
+	// 日志格式化
+	db.Callback().Query().After("gorm:query").Register("log_query", func(db *gorm.DB) {
+		if requestID, ok := db.InstanceGet("request_id"); ok {
+			logrus.WithField("RequestID", requestID).Debugf(
+				"SQL: %s | Params: %v",
+				db.Statement.SQL.String(),
+				db.Statement.Vars,
+			)
+		}
+	})
+
 	// 获取底层SQL DB对象以设置连接池
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -66,13 +90,12 @@ func InitDb() {
 	}
 
 	// 连接池设置
-	sqlDB.SetMaxIdleConns(10)                  // 最大空闲连接数
-	sqlDB.SetMaxOpenConns(100)                 // 最大打开连接数
-	sqlDB.SetConnMaxLifetime(time.Hour)        // 建议适当延长生命周期（原示例的10秒太短）
-	sqlDB.SetConnMaxIdleTime(30 * time.Minute) // 新增空闲超时设置
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetConnMaxIdleTime(30 * time.Minute)
 
-	// 自动迁移（建议生产环境谨慎使用）
-	// , &Profile{}, &Comment{}
+	// 自动迁移
 	if err := db.AutoMigrate(&User{}, &Article{}, &Category{}); err != nil {
 		log.Fatal("数据库迁移失败: ", err)
 		os.Exit(1)

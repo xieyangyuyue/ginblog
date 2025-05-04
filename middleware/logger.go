@@ -1,11 +1,15 @@
 package middleware
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	retalog "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
+	"io"
 	"os"
 	"time"
 )
@@ -88,9 +92,27 @@ func Logger() gin.HandlerFunc {
 
 	// 中间件处理函数
 	return func(c *gin.Context) {
+		// 生成请求ID
+		requestID := generateRequestID()
+
+		// 创建带请求ID的上下文
+		ctx := context.WithValue(c.Request.Context(), "RequestID", requestID)
+		c.Request = c.Request.WithContext(ctx)
 		// 记录请求开始时间
 		startTime := time.Now()
-
+		//// 新增：记录请求参数
+		//var requestBody string
+		//if c.Request.Body != nil {
+		//	bodyBytes, _ := c.GetRawData()
+		//	requestBody = string(bodyBytes)
+		//	c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		//}
+		// 捕获请求体（支持重复读取）
+		var bodyBytes []byte
+		if c.Request.Body != nil {
+			bodyBytes, _ = io.ReadAll(c.Request.Body)
+			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		}
 		// 处理请求（继续后续中间件）
 		c.Next()
 
@@ -114,9 +136,12 @@ func Logger() gin.HandlerFunc {
 		}
 		method := c.Request.Method   // 请求方法
 		path := c.Request.RequestURI // 请求路径
-
+		query := c.Request.URL.Query()
+		body := sanitizeBody(string(bodyBytes)) // 脱敏处理敏
 		// 构造日志条目
 		entry := logger.WithFields(logrus.Fields{
+			"RequestID": requestID,
+			//"Latency":   time.Since(startTime).String(),//处理耗时
 			"HostName":  hostName,   // 服务器标识
 			"status":    statusCode, // HTTP状态码
 			"SpendTime": spendTime,  // 处理耗时
@@ -125,6 +150,8 @@ func Logger() gin.HandlerFunc {
 			"Path":      path,       // 请求路径
 			"DataSize":  dataSize,   // 响应数据大小（字节）
 			"Agent":     userAgent,  // 客户端信息
+			"Query":     query,
+			"Body":      body, // 脱敏处理敏
 		})
 
 		// 根据状态码分级记录
@@ -139,4 +166,22 @@ func Logger() gin.HandlerFunc {
 			entry.Info()
 		}
 	}
+}
+
+// 生成唯一请求ID（示例）
+func generateRequestID() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano())
+}
+
+// 敏感字段脱敏（如密码）
+func sanitizeBody(body string) string {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &data); err == nil {
+		if _, ok := data["password"]; ok {
+			data["password"] = "******"
+		}
+		sanitized, _ := json.Marshal(data)
+		return string(sanitized)
+	}
+	return body
 }

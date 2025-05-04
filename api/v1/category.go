@@ -10,11 +10,12 @@ import (
 
 // AddCategory 添加分类
 func AddCategory(c *gin.Context) {
+	ctx := c.Request.Context()
 	var data model.Category
 	_ = c.ShouldBindJSON(&data)
-	code := model.CheckCategory(data.Name)
+	code := model.CheckCategory(ctx, data.Name)
 	if code == errmsg.Success {
-		model.CreateCate(&data)
+		model.CreateCate(ctx, &data)
 	}
 
 	c.JSON(
@@ -28,9 +29,10 @@ func AddCategory(c *gin.Context) {
 
 // GetCateInfo 查询分类信息
 func GetCateInfo(c *gin.Context) {
+	ctx := c.Request.Context()
 	id, _ := strconv.Atoi(c.Param("id"))
 
-	data, code := model.GetCateInfo(id)
+	data, code := model.GetCateInfo(ctx, id)
 
 	c.JSON(
 		http.StatusOK, gin.H{
@@ -44,6 +46,7 @@ func GetCateInfo(c *gin.Context) {
 
 // GetCate 查询分类列表
 func GetCate(c *gin.Context) {
+	ctx := c.Request.Context()
 	pageSize, _ := strconv.Atoi(c.Query("pagesize"))
 	pageNum, _ := strconv.Atoi(c.Query("pagenum"))
 
@@ -58,7 +61,7 @@ func GetCate(c *gin.Context) {
 		pageNum = 1
 	}
 
-	data, total := model.GetCate(pageSize, pageNum)
+	data, total := model.GetCate(ctx, pageSize, pageNum)
 	code := errmsg.Success
 	c.JSON(
 		http.StatusOK, gin.H{
@@ -72,12 +75,13 @@ func GetCate(c *gin.Context) {
 
 // EditCate 编辑分类名
 func EditCate(c *gin.Context) {
+	ctx := c.Request.Context()
 	var data model.Category
 	id, _ := strconv.Atoi(c.Param("id"))
 	_ = c.ShouldBindJSON(&data)
-	code := model.CheckUpCategory(id, data.Name)
+	code := model.CheckUpCategory(ctx, id, data.Name)
 	if code == errmsg.Success {
-		model.EditCate(id, &data)
+		model.EditCate(ctx, id, &data)
 	}
 	if code == errmsg.ErrorCatenameUsed {
 		c.Abort()
@@ -94,9 +98,10 @@ func EditCate(c *gin.Context) {
 
 // DeleteCate 删除用户
 func DeleteCate(c *gin.Context) {
+	ctx := c.Request.Context()
 	id, _ := strconv.Atoi(c.Param("id"))
 
-	code := model.DeleteCate(id)
+	code := model.DeleteCate(ctx, id)
 
 	c.JSON(
 		http.StatusOK, gin.H{

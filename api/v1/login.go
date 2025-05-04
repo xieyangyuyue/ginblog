@@ -12,12 +12,14 @@ import (
 
 // Login 后台登陆
 func Login(c *gin.Context) {
+	// 获取请求上下文
+	ctx := c.Request.Context()
 	var formData model.User
 	_ = c.ShouldBindJSON(&formData)
 	var token string
 	var code int
 
-	formData, code = model.CheckLogin(formData.Username, formData.Password)
+	formData, code = model.CheckLogin(ctx, formData.Username, formData.Password)
 
 	if code == errmsg.Success {
 		setToken(c, formData)
@@ -35,11 +37,13 @@ func Login(c *gin.Context) {
 
 // LoginFront 前台登录
 func LoginFront(c *gin.Context) {
+	// 获取请求上下文
+	ctx := c.Request.Context()
 	var formData model.User
 	_ = c.ShouldBindJSON(&formData)
 	var code int
 
-	formData, code = model.CheckLoginFront(formData.Username, formData.Password)
+	formData, code = model.CheckLoginFront(ctx, formData.Username, formData.Password)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  code,
