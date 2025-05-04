@@ -2,6 +2,8 @@ package model
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm/schema"
 	"log"
 	"os"
 	"time"
@@ -10,7 +12,6 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"gorm.io/gorm/schema"
 )
 
 var db *gorm.DB
@@ -24,10 +25,21 @@ func InitDb() {
 		utils.DbPort,
 		utils.DbName,
 	)
-
+	// 配置GORM日志（更新为以下内容）
+	newLogger := logger.New(
+		logrus.StandardLogger(),
+		logger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  logger.Info, // 显示所有SQL日志
+			IgnoreRecordNotFoundError: false,
+			ParameterizedQueries:      true, // 显示完整参数（非占位符形式）
+			Colorful:                  true, // 控制台彩色输出
+		},
+	)
 	// 初始化GORM配置
 	config := &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent), // 静默日志模式
+		Logger: newLogger,
+		//Logger: logger.Default.LogMode(logger.Silent), // 静默日志模式
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true, // 单数表名
 		},
@@ -41,7 +53,11 @@ func InitDb() {
 		log.Fatal("数据库连接失败: ", err)
 		os.Exit(1)
 	}
-
+	// ✅ 正确位置：在数据库连接成功后执行测试查询
+	if err := db.Debug().Exec("SELECT 1 + 1").Error; err != nil {
+		log.Fatal("数据库连接测试失败: ", err)
+		os.Exit(1)
+	}
 	// 获取底层SQL DB对象以设置连接池
 	sqlDB, err := db.DB()
 	if err != nil {

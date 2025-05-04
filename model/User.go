@@ -22,7 +22,7 @@ type User struct {
 func CheckUser(name string) (code int) {
 	var user User
 	// 查询数据库中是否存在同名用户（只查询ID字段）
-	db.Select("id").Where("username = ?", name).First(&user)
+	db.Debug().Select("id").Where("username = ?", name).First(&user)
 	if user.ID > 0 {
 		return errmsg.ErrorUsernameUsed // 返回错误码 1001（此处逻辑可能需要调整，通常应为“用户名已存在”）
 	}
@@ -32,7 +32,7 @@ func CheckUser(name string) (code int) {
 // CheckUpUser 更新查询
 func CheckUpUser(id int, name string) (code int) {
 	var user User
-	db.Select("id, username").Where("username = ?", name).First(&user)
+	db.Debug().Select("id, username").Where("username = ?", name).First(&user)
 	if user.ID == uint(id) {
 		return errmsg.Success
 	}
@@ -50,7 +50,7 @@ func CreateUser(data *User) int {
 	//data.Password = ScryptPw(data.Password)
 
 	// 执行数据库插入操作
-	err := db.Create(&data).Error
+	err := db.Debug().Create(&data).Error
 	if err != nil {
 		return errmsg.Error // 返回错误码 500
 	}
@@ -63,7 +63,7 @@ func GetUsers(username string, pageSize int, pageNum int) ([]User, int64) {
 	var total int64
 
 	if username != "" {
-		db.Select("id,username,role,created_at").Where(
+		db.Debug().Select("id,username,role,created_at").Where(
 			"username LIKE ?", username+"%",
 		).Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&users)
 		db.Model(&users).Where(
@@ -71,7 +71,7 @@ func GetUsers(username string, pageSize int, pageNum int) ([]User, int64) {
 		).Count(&total)
 		return users, total
 	}
-	err := db.Select("id,username,role,created_at").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&users)
+	err := db.Debug().Select("id,username,role,created_at").Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&users)
 	db.Model(&users).Count(&total)
 
 	if err != nil {
@@ -96,7 +96,7 @@ func EditUser(id int, data *User) int {
 // DeleteUser 删除用户
 func DeleteUser(id int) int {
 	var user User
-	err := db.Where("id = ? ", id).Delete(&user).Error
+	err := db.Debug().Where("id = ? ", id).Delete(&user).Error
 	if err != nil {
 		return errmsg.Error
 	}
@@ -143,7 +143,7 @@ func ScryptPw(password string) string {
 // 返回值: User - 用户对象, int - 状态码
 func CheckLogin(username string, password string) (User, int) {
 	var user User
-	db.Where("username = ?", username).First(&user)
+	db.Debug().Where("username = ?", username).First(&user)
 
 	// 用户不存在
 	if user.ID == 0 {
@@ -166,7 +166,7 @@ func CheckLogin(username string, password string) (User, int) {
 // CheckLoginFront 前台登录验证（普通用户）
 func CheckLoginFront(username string, password string) (User, int) {
 	var user User
-	db.Where("username = ?", username).First(&user)
+	db.Debug().Where("username = ?", username).First(&user)
 
 	if user.ID == 0 {
 		return user, errmsg.ErrorUserNotExist

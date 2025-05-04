@@ -59,14 +59,32 @@ func Logger() gin.HandlerFunc {
 		logrus.ErrorLevel: logWriter,
 		logrus.PanicLevel: logWriter,
 	}
-
 	// 创建日志格式钩子
 	Hook := lfshook.NewHook(writeMap, &logrus.TextFormatter{
 		TimestampFormat: "2006-01-02 15:04:05", // 自定义时间格式
 	})
+	//logger.AddHook(Hook)
 
-	// 添加钩子到日志实例
+	// 创建控制台输出钩子（新增部分）
+	consoleFormatter := &logrus.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		ForceColors:     true,  // 启用颜色
+		FullTimestamp:   true,  // 显示完整时间
+		DisableSorting:  false, // 保持字段顺序
+		PadLevelText:    true,  // 对齐日志级别
+	}
+
+	consoleHook := lfshook.NewHook(lfshook.WriterMap{
+		logrus.InfoLevel:  os.Stdout,
+		logrus.ErrorLevel: os.Stderr,
+		logrus.WarnLevel:  os.Stdout,
+		logrus.DebugLevel: os.Stdout,
+		logrus.PanicLevel: os.Stderr,
+	}, consoleFormatter)
+
+	// 添加双钩子（文件和控制台）
 	logger.AddHook(Hook)
+	logger.AddHook(consoleHook)
 
 	// 中间件处理函数
 	return func(c *gin.Context) {
